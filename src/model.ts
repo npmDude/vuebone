@@ -18,8 +18,13 @@ export default class Model<T extends ObjectHash = any> {
   urlRoot: string | (() => string) = '';
   idAttribute = 'id';
   cidPrefix = 'c';
-  id: string | number | undefined;
+  id?: string | number = undefined;
   cid: string;
+  /**
+   * Default attributes for the model.
+   * It can be an object hash or a method returning an object hash.
+   */
+  defaults: Partial<T> | (() => Partial<T>) = () => ({});
   attributes: Partial<T> = {};
   collection: Collection | null = null;
   fetchLoading = false;
@@ -39,6 +44,10 @@ export default class Model<T extends ObjectHash = any> {
     if (options.parse) {
       attributes = this.parse(attributes);
     }
+
+    const defaultAttributes = result<Partial<T> | undefined>(this, 'defaults');
+
+    attributes = extend({}, defaultAttributes, attributes);
 
     this.set(attributes);
   }
@@ -74,13 +83,38 @@ export default class Model<T extends ObjectHash = any> {
    * @param attributes hash of attributes
    */
   set(attributes: Partial<T>): any {
-    for (const attr in attributes) {
-      Vue.set(this.attributes, attr, attributes[attr]);
+    for (const key in attributes) {
+      Vue.set(this.attributes, key, attributes[key]);
     }
 
     if (this.idAttribute in attributes) {
       this.id = this.get(this.idAttribute);
     }
+  }
+
+  /**
+   * Compares the difference between the model's attributes and another object.
+   * @param objToCompare
+   * @returns object hash of difference or false
+   */
+  compareAttributes(objToCompare: Partial<T>): Partial<T> | false {
+    const changes: Partial<T> = {};
+    let hasChanges = false;
+
+    // Loop on each property of "objToCompare"
+    for (const property in objToCompare) {
+      const value = objToCompare[property];
+
+      // If value is equal to the attribute value, skip it
+      if (isEqual(this.attributes[property], value)) continue;
+
+      // Add property and value on changes object
+      changes[property] = value;
+      hasChanges = true;
+    }
+
+    // If hasChanges, return changes else false
+    return hasChanges ? changes : false;
   }
 
   /**
@@ -164,26 +198,10 @@ export default class Model<T extends ObjectHash = any> {
     }
   }
 
-  compare(objToCompare: Partial<T>): Partial<T> | false {
-    const changes: Partial<T> = {};
-    let hasChanges = false;
-
-    // Loop on each property of "objToCompare"
-    for (const property in objToCompare) {
-      const value = objToCompare[property];
-
-      // If value is equal to the attribute value, skip it
-      if (isEqual(this.attributes[property], value)) continue;
-
-      // Add property and value on changes object
-      changes[property] = value;
-      hasChanges = true;
-    }
-
-    // If hasChanges, return changes else false
-    return hasChanges ? changes : false;
-  }
-
+  /**
+   * Default URL for the model’s representation on the server
+   * @returns model's URL
+   */
   url() {
     const base = result<string>(this, 'urlRoot') || result<string>(this.collection, 'url');
 

@@ -1,5 +1,8 @@
 {
-    "version": "0.1.0",
+    "name": "vuebone",
+    "version": "0.1.1",
+    "description": "Vuebone",
+    "author": "Neil Patrick Mendoza",
     "license": "MIT",
     "main": "dist/index.js",
     "typings": "dist/index.d.ts",
@@ -19,6 +22,10 @@
         "size": "size-limit",
         "analyze": "size-limit --why"
     },
+    "repository": {
+        "type": "git",
+        "url": "git@bitbucket.org:housingjapan/phoenix-ui.git"
+    },
     "husky": {
         "hooks": {
             "pre-commit": "tsdx lint"
@@ -30,8 +37,6 @@
         "singleQuote": true,
         "trailingComma": "es5"
     },
-    "name": "vuebone",
-    "author": "Neil Patrick Mendoza",
     "module": "dist/vuebone.esm.js",
     "size-limit": [
         {

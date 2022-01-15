@@ -1,6 +1,6 @@
 {
     "name": "vuebone",
-    "version": "0.1.1",
+    "version": "0.1.0",
     "description": "Vuebone",
     "author": "Neil Patrick Mendoza",
     "license": "MIT",
@@ -24,7 +24,7 @@
     },
     "repository": {
         "type": "git",
-        "url": "git@bitbucket.org:housingjapan/phoenix-ui.git"
+        "url": "https://github.com/npmDude/vuebone.git"
     },
     "husky": {
         "hooks": {

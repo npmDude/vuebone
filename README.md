@@ -2,6 +2,14 @@
 
 Vuebone is a state management library for Vue.js. Made with TSDX.
 
+## Model
+
+Models are the basic data object frequently representing a row in a table in a database on your server. A discrete chunk of data and a bunch of useful, related methods for performing computations and transformations on that data.
+
+## Collection
+
+Collections are sets of models. `fetch` the collection from the server, and use a full suite of Lodash methods.
+
 Congrats! You just saved yourself hours of work by bootstrapping this project with TSDX. Let’s get you oriented with what’s here and how to use it.
 
 > This TSDX setup is meant for developing libraries (not apps!) that can be published to NPM. If you’re looking to build a Node app, you could use `ts-node-dev`, plain `ts-node`, or simple `tsc`.

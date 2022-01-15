@@ -1,12 +1,16 @@
-import config from '@/config';
-import { clone, every, extend, filter, find, forEach, indexOf, map, matches, result, some } from 'lodash';
-import Model from './model';
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import { clone, every, extend, filter, find, forEach, indexOf, ListIterateeCustom, ListIterator, map, matches, result, some } from 'lodash';
+import Model, { ModelConstructor, ModelSaveOptions, ModelTypeParamaterT } from './model';
+import { ObjectHash, Parseable } from './types';
+
+const ITERATOR_VALUES = 1;
+const ITERATOR_KEYS = 2;
+const ITERATOR_KEYSVALUES = 3;
 
 const setOptions = { add: true, remove: true, merge: true };
 const addOptions = { add: true, remove: false };
 
-function splice(array, insert, at: number) {
+function splice(array: any[], insert: any[], at: number) {
   at = Math.min(Math.max(at, 0), array.length);
   const tail = Array(array.length - at);
   const length = insert.length;
@@ -24,88 +28,149 @@ function splice(array, insert, at: number) {
   }
 };
 
-export default class Collection {
+interface CollectionConstructorOptions<TModel extends Model> extends Parseable, ObjectHash {
+  model?: ModelConstructor<ModelTypeParamaterT<TModel>>;
+}
+
+interface AddOptions {
+  at?: number;
+  merge?: boolean;
+}
+
+interface CollectionSetOptions extends Parseable, AddOptions {
+  add?: boolean;
+  remove?: boolean;
+}
+
+interface CollectionFetchOptions extends AxiosRequestConfig, Parseable { }
+
+export default class Collection<TModel extends Model = Model> {
   axios: AxiosInstance = axios;
   url: string | (() => string) = '';
-  Model = Model;
-  models = [];
+  model: ModelConstructor<ModelTypeParamaterT<TModel>> = Model;
+  models: TModel[] = [];
   length = 0;
-  _byId = {};
+  private _byId: Record<string, TModel> = {};
   fetchLoading = false;
-  fetchError = null;
+  fetchError: any | null = null;
   createLoading = false;
-  createError = null;
+  createError: any | null = null;
 
-  constructor(models, options = {}) {
+  constructor(models?: TModel[], options?: CollectionConstructorOptions<TModel>) {
+    if (options) {
+      if (options.model) {
+        this.model = options.model;
+      }
+    }
+
     if (models) {
-      this.reset(models, clone(options));
+      this.reset(models);
     }
   }
 
   toJSON() {
-    return this.map(model => model.toJSON());
+    return this.map((model: TModel) => model.toJSON());
   }
 
-  add(models, options) {
-    return this.set(models, extend({ merge: false }, options, addOptions));
+  add(models: Array<{} | TModel>): TModel[];
+  add(model: {} | TModel): TModel;
+  add(models: {} | TModel | Array<{} | TModel>): TModel[] | TModel | void {
+    return this.set(models, extend({ merge: false }, addOptions));
   }
 
-  remove(models) {
-    const isSingular = !Array.isArray(models);
-    models = isSingular ? [models] : models.slice();
+  remove(models: TModel | Array<TModel>): TModel[] | TModel {
+    let isSingular, modelsArray: Array<TModel>;
+    if (!Array.isArray(models)) {
+      isSingular = true;
+      modelsArray = [models];
+    } else {
+      isSingular = false;
+      modelsArray = models.slice();
+    }
 
-    const removed = this._removeModels(models);
+    const removed = this._removeModels(modelsArray);
 
     return isSingular ? removed[0] : removed;
   }
 
-  get(obj) {
+  get(obj: number | string | any | Model): TModel | undefined {
     if (obj == null) return undefined;
 
-    return this._byId[obj] ||
-      this._byId[this.modelId(this._isModel(obj) ? obj.attributes : obj)] ||
-      (obj.cid && this._byId[obj.cid]);
+    let model: TModel | undefined = undefined;
+    if (typeof obj === 'string' || typeof obj === 'number') {
+      model = this._byId[obj];
+
+      return model;
+    } else {
+      model = this._byId[this.modelId(this._isModel(obj) ? obj.attributes : obj)]
+
+      if (model) {
+        return model;
+      } else if (obj.cid) {
+        model = this._byId[obj.cid];
+      }
+
+      return model;
+    }
   }
 
-  where(attrs, firstOnly) {
+  at(index: number): TModel {
+    if (index < 0) index += this.length;
+
+    return this.models[index];
+  }
+
+  where(attrs: any, firstOnly: boolean) {
     return this[firstOnly ? 'find' : 'filter'](attrs);
   }
 
-  findWhere(attrs) {
+  findWhere(attrs: any) {
     return this.where(attrs, true);
   }
 
-  set(models, options) {
+  set(model?: {} | TModel, options?: CollectionSetOptions): TModel | void;
+  set(models?: Array<{} | TModel>, options?: CollectionSetOptions): TModel[] | void;
+  set(models?: {} | TModel | Array<{} | TModel>, options?: CollectionSetOptions): TModel[] | TModel | void {
     if (models == null) return;
 
     options = extend({}, setOptions, options);
+    if (options.parse && !this._isModel(models)) {
+      models = this.parse(models);
+    }
 
-    const isSingular = !Array.isArray(models);
-    models = isSingular ? [models] : models.slice();
+    let isSingular, modelsArray: Array<{} | TModel>;
+    if (!Array.isArray(models)) {
+      isSingular = true;
+      modelsArray = [models];
+    } else {
+      isSingular = false;
+      modelsArray = models.slice();
+    }
 
     let at = options.at;
-    if (at != null) at = +at;
-    if (at > this.length) at = this.length;
-    if (at < 0) at += this.length + 1;
+    if (at != null) {
+      at = +at;
+      if (at > this.length) at = this.length;
+      if (at < 0) at += this.length + 1;
+    }
 
     const set = [];
     const toAdd = [];
     const toMerge = [];
     const toRemove = [];
-    const modelMap = {};
+    const modelMap: Record<string, boolean> = {};
     const isAdd = options.add;
     const isMerge = options.merge;
     const isRemove = options.remove;
 
-    let model;
-    for (let i = 0; i < models.length; i++) {
-      model = models[i];
+    for (let i = 0; i < modelsArray.length; i++) {
+      const model = modelsArray[i];
 
       const existing = this.get(model);
       if (existing) {
         if (isMerge && model !== existing) {
           const attrs = this._isModel(model) ? model.attributes : model;
-          existing.set(attrs, options);
+          existing.set(attrs);
           toMerge.push(existing);
         }
 
@@ -114,21 +179,22 @@ export default class Collection {
           set.push(existing);
         }
 
-        models[i] = existing;
+        modelsArray[i] = existing;
       } else if (isAdd) {
-        model = models[i] = this._prepareModel(model, options);
-        if (model) {
-          toAdd.push(model);
-          this._addReference(model);
-          modelMap[model.cid] = true;
-          set.push(model);
+        const newModel = this._prepareModel(modelsArray[i], options) as TModel;
+
+        if (newModel) {
+          toAdd.push(newModel);
+          this._addReference(newModel);
+          modelMap[newModel.cid] = true;
+          set.push(newModel);
         }
       }
     }
 
     if (isRemove) {
       for (let i = 0; i < this.length; i++) {
-        model = this.models[i];
+        const model = this.models[i];
 
         if (!modelMap[model.cid]) {
           toRemove.push(model);
@@ -150,27 +216,22 @@ export default class Collection {
       this.length = this.models.length;
     }
 
-    return isSingular ? models[0] : models;
+    return isSingular ? modelsArray[0] as TModel : modelsArray as TModel[];
   }
 
-  reset(models, options = {}) {
-    options = clone(options);
-
+  reset(models?: Array<{} | TModel>): TModel[] | void {
     for (let i = 0; i < this.models.length; i++) {
       this._removeReference(this.models[i]);
     }
 
     this._reset();
 
-    models = this.add(models, extend({ silent: true }, options));
-
-    return models;
+    if (models) {
+      return this.add(models);
+    }
   }
 
-  // Override if needed
-  async mockGetRequest() { }
-
-  async fetch(params) {
+  async fetch(options: CollectionFetchOptions) {
     console.debug(`${this.constructor.name}#fetch`);
 
     try {
@@ -178,13 +239,11 @@ export default class Collection {
       this.fetchError = null;
       this.reset();
 
+      const { parse, ...axiosConfig } = extend({ parse: true }, options);
+
       let models;
-      if (config.useMockApi) {
-        models = await this.mockGetRequest();
-      } else {
-        const { data } = await this.axios.get(result(this, 'url'), { params });
-        models = data;
-      }
+      const { data } = await this.axios.get(result(this, 'url'), axiosConfig);
+      models = data;
 
       this.reset(models);
     } catch (error) {
@@ -194,24 +253,19 @@ export default class Collection {
     }
   }
 
-  // Override if needed
-  async mockPostRequest() { }
-
-  async create(attributes) {
+  async create(attributes: any, options?: ModelSaveOptions) {
     console.debug(`${this.constructor.name}#create`);
 
     try {
       this.createLoading = true;
       this.createError = null;
 
-      let model;
-      if (config.useMockApi) {
-        model = await this.mockPostRequest();
-      } else {
-        const { data } = await this.axios.post(result(this, 'url'), attributes);
+      const { parse, ...axiosConfig } = extend({ parse: true }, options);
 
-        model = { ...attributes, ...data };
-      }
+      let model;
+      const { data } = await this.axios.post(result(this, 'url'), attributes, axiosConfig);
+
+      model = { ...attributes, ...data };
 
       this.add(model);
 
@@ -223,74 +277,78 @@ export default class Collection {
     }
   }
 
-  modelId(attrs) {
-    return attrs[this.Model.prototype.idAttribute || 'id'];
+  parse(response: any): Array<{}> {
+    return response;
   }
 
-  values() {
+  modelId(attrs: any) {
+    return attrs[this.model.prototype.idAttribute || 'id'];
+  }
+
+  values(): Iterator<TModel> {
     return new CollectionIterator(this, ITERATOR_VALUES);
   }
 
-  keys() {
+  keys(): Iterator<any> {
     return new CollectionIterator(this, ITERATOR_KEYS);
   }
 
-  entries() {
+  entries(): Iterator<[any, TModel]> {
     return new CollectionIterator(this, ITERATOR_KEYSVALUES);
   }
 
-  forEach(iteratee) {
+  forEach(iteratee: ListIterator<TModel, any>): TModel[] {
     return forEach(this.models, iteratee);
   }
 
-  map(iteratee) {
+  map<TResult>(iteratee: ListIterator<TModel, TResult>): TResult[] {
     return map(this.models, iteratee);
   }
 
-  find(predicate) {
+  find(predicate: ListIterateeCustom<TModel, boolean>) {
     return find(this.models, this._predicateHandler(predicate));
   }
 
-  filter(predicate) {
+  filter(predicate: ListIterateeCustom<TModel, boolean>) {
     return filter(this.models, this._predicateHandler(predicate));
   }
 
-  every(predicate) {
+  every(predicate: ListIterateeCustom<TModel, boolean>) {
     return every(this.models, this._predicateHandler(predicate));
   }
 
-  some(predicate) {
+  some(predicate: ListIterateeCustom<TModel, boolean>) {
     return some(this.models, this._predicateHandler(predicate));
   }
 
-  indexOf(value) {
+  indexOf(value: TModel) {
     return indexOf(this.models, value);
   }
 
-  _reset() {
+  private _reset() {
     this.length = 0;
     this.models = [];
     this._byId = {};
   }
 
-  _prepareModel(attrs, options = {}) {
-    if (this._isModel(attrs)) {
-      if (!attrs.collection) {
-        attrs.collection = this;
+  private _prepareModel(attributes?: any, options: any = {}) {
+    if (this._isModel(attributes)) {
+      if (!attributes.collection) {
+        attributes.collection = this;
       };
 
-      return attrs;
+      return attributes;
     }
 
     options = clone(options);
     options.collection = this;
 
-    const model = new this.Model(attrs, options);
+    const model = new this.model(attributes, options);
 
     return model;
   }
 
-  _removeModels(models) {
+  private _removeModels(models: TModel[]) {
     const removed = [];
 
     for (let i = 0; i < models.length; i++) {
@@ -312,11 +370,11 @@ export default class Collection {
     return removed;
   }
 
-  _isModel(model) {
+  private _isModel(model: any): model is TModel {
     return model instanceof Model;
   }
 
-  _addReference(model) {
+  private _addReference(model: TModel) {
     this._byId[model.cid] = model;
 
     const id = this.modelId(model.attributes);
@@ -325,7 +383,7 @@ export default class Collection {
     };
   }
 
-  _removeReference(model) {
+  private _removeReference(model: TModel) {
     delete this._byId[model.cid];
 
     const id = this.modelId(model.attributes);
@@ -338,67 +396,62 @@ export default class Collection {
     };
   }
 
-  _predicateHandler(predicate) {
+  private _predicateHandler(predicate: Partial<ModelTypeParamaterT<TModel>> | ListIterateeCustom<TModel, boolean>): ListIterateeCustom<TModel, boolean> {
     if (typeof predicate === 'object') {
-      return this._modelMatcher(predicate);
+      return this._modelMatcher(predicate as Partial<ModelTypeParamaterT<TModel>>);
     }
 
     return predicate;
   }
 
-  _modelMatcher(attrs) {
+  private _modelMatcher(attrs: Partial<ModelTypeParamaterT<TModel>>) {
     const matcher = matches(attrs);
 
-    return function (model) {
+    return function (model: TModel) {
       return matcher(model.attributes);
     };
   }
+
+  [Symbol.iterator] = this.values;
 }
 
-/* global Symbol */
-const $$iterator = typeof Symbol === 'function' && Symbol.iterator;
-if ($$iterator) {
-  Collection.prototype[$$iterator] = Collection.prototype.values;
-}
+class CollectionIterator<TModel extends Model = any, TCollection extends Collection<TModel> = any> {
+  _collection: TCollection | undefined;
+  _kind: number;
+  _index = 0;
 
-const CollectionIterator = function (collection, kind) {
-  this._collection = collection;
-  this._kind = kind;
-  this._index = 0;
-};
+  constructor(collection: TCollection, kind: number) {
+    this._collection = collection;
+    this._kind = kind;
+  }
 
-const ITERATOR_VALUES = 1;
-const ITERATOR_KEYS = 2;
-const ITERATOR_KEYSVALUES = 3;
+  next() {
+    if (this._collection) {
+      if (this._index < this._collection.length) {
+        const model = this._collection.at(this._index);
+        this._index++;
 
-if ($$iterator) {
-  CollectionIterator.prototype[$$iterator] = function () {
+        let value;
+        if (this._kind === ITERATOR_VALUES) {
+          value = model;
+        } else {
+          const id = this._collection.modelId(model.attributes);
+          if (this._kind === ITERATOR_KEYS) {
+            value = id;
+          } else { // ITERATOR_KEYSVALUES
+            value = [id, model];
+          }
+        }
+        return { value, done: false };
+      }
+
+      this._collection = undefined;
+    }
+
+    return { value: undefined, done: true };
+  }
+
+  [Symbol.iterator]() {
     return this;
   };
 }
-
-CollectionIterator.prototype.next = function () {
-  if (this._collection) {
-    if (this._index < this._collection.length) {
-      const model = this._collection.at(this._index);
-      this._index++;
-
-      let value;
-      if (this._kind === ITERATOR_VALUES) {
-        value = model;
-      } else {
-        const id = this._collection.modelId(model.attributes);
-        if (this._kind === ITERATOR_KEYS) {
-          value = id;
-        } else { // ITERATOR_KEYSVALUES
-          value = [id, model];
-        }
-      }
-      return { value, done: false };
-    }
-
-    this._collection = undefined;
-  }
-
-  return { value: undefined, done: true };
-};

@@ -2,6 +2,7 @@ import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { clone, extend, isEqual, result, uniqueId } from 'lodash';
 import Vue from 'vue';
 import Collection from './collection';
+import { ObjectHash, Parseable, StringKey } from './generic-types';
 
 interface ModelConstructorOptions<TModel extends Model = any> extends Parseable, ObjectHash {
   collection?: Collection<TModel>;
@@ -9,7 +10,7 @@ interface ModelConstructorOptions<TModel extends Model = any> extends Parseable,
 
 export type ModelTypeParamaterT<TModel extends Model> = TModel extends Model<infer T> ? T : never;
 
-export type ModelConstructor<T extends ObjectHash> = new (attributes?: Partial<T>, options?: ModelConstructorOptions) => Model;
+export type ModelConstructor<T extends ObjectHash> = new (attributes?: Partial<T>, options?: ModelConstructorOptions) => Model<T>;
 
 interface ModelFetchOptions extends AxiosRequestConfig, Parseable { }
 
@@ -59,8 +60,8 @@ export default class Model<T extends ObjectHash = any> {
   }
 
   /**
-   * Copies of the model’s attributes object.
-   * @returns copy of the model’s attributes object
+   * Copies of the model's attributes object.
+   * @returns copy of model's attributes object
    */
   toJSON(): Partial<T> {
     return clone(this.attributes);
@@ -71,7 +72,7 @@ export default class Model<T extends ObjectHash = any> {
    * @param attributeName
    * @returns value
    */
-  get<A extends _StringKey<T>>(attributeName: A) {
+  get<A extends StringKey<T>>(attributeName: A) {
     return this.attributes[attributeName];
   }
 
@@ -80,7 +81,7 @@ export default class Model<T extends ObjectHash = any> {
    * @param attributeName
    * @returns true if the attribute contains a value that is not null or undefined
    */
-  has<A extends _StringKey<T>>(attributeName: A) {
+  has<A extends StringKey<T>>(attributeName: A) {
     return this.get(attributeName) != null;
   }
 
@@ -124,7 +125,7 @@ export default class Model<T extends ObjectHash = any> {
   }
 
   /**
-   * Fetch the model from the server, merging the response with the model’s local attributes.
+   * Fetch the model from the server, merging the response with the model's local attributes.
    * @param options
    */
   async fetch(options: ModelFetchOptions) {
@@ -203,7 +204,7 @@ export default class Model<T extends ObjectHash = any> {
   }
 
   /**
-   * Default URL for the model’s representation on the server
+   * Default URL for the model's representation on the server
    * @returns model's URL
    */
   url() {

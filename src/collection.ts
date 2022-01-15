@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { clone, every, extend, filter, find, forEach, indexOf, ListIterateeCustom, ListIterator, map, matches, result, some } from 'lodash';
+import { ObjectHash, Parseable } from './generic-types';
 import Model, { ModelConstructor, ModelSaveOptions, ModelTypeParamaterT } from './model';
-import { ObjectHash, Parseable } from './types';
 
 const ITERATOR_VALUES = 1;
 const ITERATOR_KEYS = 2;

@@ -45,6 +45,7 @@
     ],
     "devDependencies": {
         "@size-limit/preset-small-lib": "^7.0.5",
+        "@types/backbone": "^1.4.15",
         "@types/lodash": "^4.14.178",
         "husky": "^7.0.4",
         "size-limit": "^7.0.5",

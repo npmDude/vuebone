@@ -3,13 +3,17 @@ import { clone, extend, isEqual, result, uniqueId } from 'lodash';
 import Vue from 'vue';
 import Collection from './collection';
 
-interface ModelConstructorOptions extends Parseable {
-  collection?: Collection;
+interface ModelConstructorOptions<TModel extends Model = any> extends Parseable, ObjectHash {
+  collection?: Collection<TModel>;
 }
+
+export type ModelTypeParamaterT<TModel extends Model> = TModel extends Model<infer T> ? T : never;
+
+export type ModelConstructor<T extends ObjectHash> = new (attributes?: Partial<T>, options?: ModelConstructorOptions) => Model;
 
 interface ModelFetchOptions extends AxiosRequestConfig, Parseable { }
 
-interface ModelSaveOptions extends AxiosRequestConfig, Parseable { }
+export interface ModelSaveOptions extends AxiosRequestConfig, Parseable { }
 
 interface ModelDestroyOptions extends AxiosRequestConfig { }
 
@@ -26,7 +30,7 @@ export default class Model<T extends ObjectHash = any> {
    */
   defaults: Partial<T> | (() => Partial<T>) = () => ({});
   attributes: Partial<T> = {};
-  collection: Collection | null = null;
+  collection?: Collection<this>;
   fetchLoading = false;
   fetchError: any | null = null;
   saveLoading = false;
@@ -34,15 +38,17 @@ export default class Model<T extends ObjectHash = any> {
   deleteLoading = false;
   deleteError: any | null = null;
 
-  constructor(attributes: Partial<T> = {}, options: ModelConstructorOptions = {}) {
+  constructor(attributes: Partial<T> = {}, options?: ModelConstructorOptions) {
     this.cid = uniqueId(this.cidPrefix);
 
-    if (options.collection) {
-      this.collection = options.collection;
-    };
+    if (options) {
+      if (options.collection) {
+        this.collection = options.collection;
+      };
 
-    if (options.parse) {
-      attributes = this.parse(attributes);
+      if (options.parse) {
+        attributes = this.parse(attributes);
+      }
     }
 
     const defaultAttributes = result<Partial<T> | undefined>(this, 'defaults');
@@ -126,8 +132,7 @@ export default class Model<T extends ObjectHash = any> {
       this.fetchLoading = true;
       this.fetchError = null;
 
-      options = extend({ parse: true }, options);
-      const { parse, ...axiosConfig } = options;
+      const { parse, ...axiosConfig } = extend({ parse: true }, options);
 
       const { data } = await this.axios.get(this.url(), axiosConfig);
 
@@ -152,8 +157,7 @@ export default class Model<T extends ObjectHash = any> {
       this.saveLoading = true;
       this.saveError = null;
 
-      options = extend({ parse: true }, options);
-      const { parse, ...axiosConfig } = options;
+      const { parse, ...axiosConfig } = extend({ parse: true }, options);
 
       let serverData;
       if (this.isNew()) {
@@ -218,15 +222,18 @@ export default class Model<T extends ObjectHash = any> {
    * Converts a reponse into the hash of attributes to be `set` on the model.
    * The default implementation is just to pass the response along.
    */
-  parse(response: any) {
+  parse(response: any): Partial<T> {
     return response;
   }
 
   /**
    * Creates a new model with identical attributes.
    */
-  clone(): this {
-    return new (<any>this.constructor)(this.attributes);
+  clone(options: Record<string, any>): Model {
+    return new (<ModelConstructor<T>>this.constructor)(this.attributes, {
+      collection: this.collection,
+      ...options
+    });
   }
 
   /**

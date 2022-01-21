@@ -32,17 +32,19 @@ interface CollectionConstructorOptions<TModel extends Model> extends Parseable, 
   model?: ModelConstructor<ModelTypeParamaterT<TModel>>;
 }
 
-interface AddOptions {
+interface AddOptions extends Parseable {
   at?: number;
   merge?: boolean;
 }
 
-interface CollectionSetOptions extends Parseable, AddOptions {
+interface CollectionSetOptions extends AddOptions {
   add?: boolean;
   remove?: boolean;
 }
 
-interface CollectionFetchOptions extends AxiosRequestConfig, Parseable { }
+interface CollectionFetchOptions extends AxiosRequestConfig, Parseable {
+  add?: boolean
+}
 
 export default class Collection<TModel extends Model = Model> {
   axios: AxiosInstance = axios;
@@ -72,10 +74,10 @@ export default class Collection<TModel extends Model = Model> {
     return this.map((model: TModel) => model.toJSON());
   }
 
-  add(models: Array<{} | TModel>): TModel[];
-  add(model: {} | TModel): TModel;
-  add(models: {} | TModel | Array<{} | TModel>): TModel[] | TModel | void {
-    return this.set(models, extend({ merge: false }, addOptions));
+  add(models: Array<{} | TModel>, options?: AddOptions): TModel[];
+  add(model: {} | TModel, options?: AddOptions): TModel;
+  add(models: {} | TModel | Array<{} | TModel>, options?: AddOptions): TModel[] | TModel | void {
+    return this.set(models, extend({ merge: false }, addOptions, options));
   }
 
   remove(models: TModel | Array<TModel>): TModel[] | TModel {
@@ -219,7 +221,7 @@ export default class Collection<TModel extends Model = Model> {
     return isSingular ? modelsArray[0] as TModel : modelsArray as TModel[];
   }
 
-  reset(models?: Array<{} | TModel>): TModel[] | void {
+  reset(models?: Array<{} | TModel>, options?: AddOptions): TModel[] | void {
     for (let i = 0; i < this.models.length; i++) {
       this._removeReference(this.models[i]);
     }
@@ -227,7 +229,7 @@ export default class Collection<TModel extends Model = Model> {
     this._reset();
 
     if (models) {
-      return this.add(models);
+      return this.add(models, options);
     }
   }
 
@@ -239,13 +241,18 @@ export default class Collection<TModel extends Model = Model> {
       this.fetchError = null;
       this.reset();
 
-      const { parse, ...axiosConfig } = extend({ parse: true }, options);
+      const { add, parse, ...axiosConfig } = extend({
+        merge: false,
+        parse: true
+      }, options);
 
-      let models;
-      const { data } = await this.axios.get(result(this, 'url'), axiosConfig);
-      models = data;
+      const { data: models } = await this.axios.get(result(this, 'url'), axiosConfig);
 
-      this.reset(models);
+      if (add) {
+        this.set(models, { parse });
+      } else {
+        this.reset(models, { parse });
+      }
     } catch (error) {
       this.fetchError = error;
     } finally {
@@ -260,18 +267,18 @@ export default class Collection<TModel extends Model = Model> {
       this.createLoading = true;
       this.createError = null;
 
-      const { parse, ...axiosConfig } = extend({ parse: true }, options);
+      const model = this._prepareModel(attributes);
 
-      let model;
-      const { data } = await this.axios.post(result(this, 'url'), attributes, axiosConfig);
+      if (!model) return false;
 
-      model = { ...attributes, ...data };
+      await model.save(undefined, options);
 
       this.add(model);
 
-      return model;
+      return model as TModel;
     } catch (error) {
       this.createError = error;
+      return false;
     } finally {
       this.createLoading = false;
     }
@@ -331,7 +338,7 @@ export default class Collection<TModel extends Model = Model> {
     this._byId = {};
   }
 
-  private _prepareModel(attributes?: any, options: any = {}) {
+  private _prepareModel(attributes?: any, options: any = {}): TModel {
     if (this._isModel(attributes)) {
       if (!attributes.collection) {
         attributes.collection = this;
@@ -345,7 +352,7 @@ export default class Collection<TModel extends Model = Model> {
 
     const model = new this.model(attributes, options);
 
-    return model;
+    return model as TModel;
   }
 
   private _removeModels(models: TModel[]) {

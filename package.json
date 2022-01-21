@@ -1,6 +1,6 @@
 {
     "name": "vuebone",
-    "version": "0.1.2",
+    "version": "0.1.3",
     "description": "Vuebone",
     "author": "Neil Patrick Mendoza",
     "license": "MIT",
@@ -59,7 +59,7 @@
         "typescript": "^3.9.10"
     },
     "dependencies": {
-        "axios": "^0.24.0",
+        "axios": "^0.25.0",
         "lodash": "^4.17.21",
         "lodash-es": "^4.17.21",
         "vue": "^2.6.14"

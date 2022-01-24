@@ -48,7 +48,7 @@ interface CollectionFetchOptions extends AxiosRequestConfig, Parseable {
 
 export default class Collection<TModel extends Model = Model> {
   axios: AxiosInstance = axios;
-  url: string | (() => string) = '';
+  url: string | (() => string) | undefined;
   Model: ModelConstructor<ModelTypeParamaterT<TModel>> = Model;
   models: TModel[] = [];
   length = 0;

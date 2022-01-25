@@ -1,7 +1,9 @@
 import { Model } from '../src';
 
 describe('model', () => {
-    class TestModel extends Model { }
+    class TestModel extends Model {
+        static idAttribute: string = 'user_id';
+    }
     const testModel = new TestModel();
 
     it('instance', () => {
@@ -18,5 +20,9 @@ describe('model', () => {
         testModel.set({ id: 1 });
 
         expect(testModel.url()).toEqual('/people/1');
+    });
+
+    test('id_attribute', () => {
+        expect(TestModel.idAttribute).toEqual('user_id');
     });
 });

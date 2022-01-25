@@ -248,4 +248,8 @@ export default class Model<T extends ObjectHash = any> {
   isNew() {
     return !this.has(this.idAttribute);
   }
+
+  getIdAttribute() {
+    return this.idAttribute;
+  }
 }

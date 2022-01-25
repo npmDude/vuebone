@@ -46,6 +46,10 @@ interface CollectionFetchOptions extends AxiosRequestConfig, Parseable {
   add?: boolean
 }
 
+interface CollectionCreateOptions extends ModelSaveOptions {
+  forcePost?: boolean;
+}
+
 export default class Collection<TModel extends Model = Model> {
   axios: AxiosInstance = axios;
   url: string | (() => string) | undefined;
@@ -265,7 +269,7 @@ export default class Collection<TModel extends Model = Model> {
     }
   }
 
-  async create(attributes: any, options?: ModelSaveOptions) {
+  async create(attributes: any, options?: CollectionCreateOptions) {
     console.debug(`${this.constructor.name}#create`);
 
     try {
@@ -276,11 +280,23 @@ export default class Collection<TModel extends Model = Model> {
 
       if (!model) return false;
 
-      await model.save(undefined, options);
+      const { forcePost, ...saveOptions } = extend({ forcePost: false }, options);
 
-      this.add(model);
+      if (forcePost) {
+        await model.forcePost(undefined, saveOptions);
+      } else {
+        await model.save(undefined, saveOptions);
+      }
 
-      return model as TModel;
+      if (model.saveError) {
+        this.createError = model.saveError;
+
+        return false;
+      } else {
+        this.add(model);
+
+        return model as TModel;
+      }
     } catch (error) {
       this.createError = error;
       return false;

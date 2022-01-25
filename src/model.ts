@@ -39,7 +39,12 @@ export default class Model<T extends ObjectHash = any> {
   deleteLoading = false;
   deleteError: any | null = null;
 
+  preinitialize: ((attributes: Partial<T>, options?: ModelConstructorOptions) => void) | undefined;
   constructor(attributes: Partial<T> = {}, options?: ModelConstructorOptions) {
+    if (this.preinitialize) {
+      this.preinitialize(attributes, options);
+    }
+
     this.cid = uniqueId(this.cidPrefix);
 
     if (options) {

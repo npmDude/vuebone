@@ -58,7 +58,12 @@ export default class Collection<TModel extends Model = Model> {
   createLoading = false;
   createError: any | null = null;
 
+  preinitialize: ((models?: TModel[], options?: CollectionConstructorOptions<TModel>) => void) | undefined;
   constructor(models?: TModel[], options?: CollectionConstructorOptions<TModel>) {
+    if (this.preinitialize) {
+      this.preinitialize(models, options);
+    }
+
     if (options) {
       if (options.model) {
         this.model = options.model;

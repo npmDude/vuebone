@@ -186,6 +186,27 @@ export default class Model<T extends ObjectHash = any> {
     }
   }
 
+  async forcePost(attributes?: Partial<T>, options?: ModelSaveOptions) {
+    try {
+      this.saveLoading = true;
+      this.saveError = null;
+
+      const { parse, ...axiosConfig } = extend({ parse: true }, options);
+
+      const { data: serverData } = await this.axios.post(this.baseUrl(), { ...this.attributes, ...attributes }, axiosConfig);
+
+      const serverAttributes = parse ? this.parse(serverData) : serverData;
+
+      const combinedAttributes = extend({}, attributes, serverAttributes);
+
+      this.set(combinedAttributes);
+    } catch (error) {
+      this.saveError = error;
+    } finally {
+      this.saveLoading = false;
+    }
+  }
+
   /**
    * Destroy this model on the server if it was already persisted.
    * Optimistically removes the model from its collection, if it has one.
@@ -213,7 +234,7 @@ export default class Model<T extends ObjectHash = any> {
    * @returns model's URL
    */
   url() {
-    const base = result<string>(this, 'urlRoot') || result<string>(this.collection, 'url');
+    const base = this.baseUrl();
 
     if (this.isNew()) {
       return base;
@@ -222,6 +243,10 @@ export default class Model<T extends ObjectHash = any> {
     const id = this.get(this.idAttribute);
 
     return base.replace(/[^/]$/, '$&/') + id;
+  }
+
+  baseUrl() {
+    return result<string>(this, 'urlRoot') || result<string>(this.collection, 'url');
   }
 
   /**

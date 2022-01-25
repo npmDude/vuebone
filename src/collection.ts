@@ -294,7 +294,7 @@ export default class Collection<TModel extends Model = Model> {
   }
 
   modelId(attrs: any) {
-    return attrs[this.model.prototype.idAttribute || 'id'];
+    return attrs[this.model.prototype.getIdAttribute() || 'id'];
   }
 
   values(): Iterator<TModel> {

@@ -21,7 +21,7 @@ interface ModelDestroyOptions extends AxiosRequestConfig { }
 export default class Model<T extends ObjectHash = any> {
   axios: AxiosInstance = axios;
   urlRoot: string | (() => string) = '';
-  idAttribute = 'id';
+  static idAttribute = 'id';
   cidPrefix = 'c';
   id?: string | number = undefined;
   cid: string;
@@ -99,8 +99,8 @@ export default class Model<T extends ObjectHash = any> {
       Vue.set(this.attributes, key, attributes[key]);
     }
 
-    if (this.idAttribute in attributes) {
-      this.id = this.get(this.idAttribute);
+    if (Model.idAttribute in attributes) {
+      this.id = this.get(Model.idAttribute);
     }
   }
 
@@ -219,7 +219,7 @@ export default class Model<T extends ObjectHash = any> {
       return base;
     }
 
-    const id = this.get(this.idAttribute);
+    const id = this.get(Model.idAttribute);
 
     return base.replace(/[^/]$/, '$&/') + id;
   }
@@ -246,10 +246,6 @@ export default class Model<T extends ObjectHash = any> {
    * Checks the model for an id to determine whether it is new.
    */
   isNew() {
-    return !this.has(this.idAttribute);
-  }
-
-  getIdAttribute() {
-    return this.idAttribute;
+    return !this.has(Model.idAttribute);
   }
 }

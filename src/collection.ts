@@ -49,7 +49,7 @@ interface CollectionFetchOptions extends AxiosRequestConfig, Parseable {
 export default class Collection<TModel extends Model = Model> {
   axios: AxiosInstance = axios;
   url: string | (() => string) | undefined;
-  Model: ModelConstructor<ModelTypeParamaterT<TModel>> = Model;
+  model: ModelConstructor<ModelTypeParamaterT<TModel>> = Model;
   models: TModel[] = [];
   length = 0;
   private _byId: Record<string, TModel> = {};
@@ -61,7 +61,7 @@ export default class Collection<TModel extends Model = Model> {
   constructor(models?: TModel[], options?: CollectionConstructorOptions<TModel>) {
     if (options) {
       if (options.model) {
-        this.Model = options.model;
+        this.model = options.model;
       }
     }
 
@@ -289,7 +289,7 @@ export default class Collection<TModel extends Model = Model> {
   }
 
   modelId(attrs: any) {
-    return attrs[this.Model.prototype.idAttribute || 'id'];
+    return attrs[this.model.prototype.idAttribute || 'id'];
   }
 
   values(): Iterator<TModel> {
@@ -350,7 +350,7 @@ export default class Collection<TModel extends Model = Model> {
     options = clone(options);
     options.collection = this;
 
-    const model = new this.Model(attributes, options);
+    const model = new this.model(attributes, options);
 
     return model as TModel;
   }

@@ -294,7 +294,7 @@ export default class Collection<TModel extends Model = Model> {
   }
 
   modelId(attrs: any) {
-    const model = new this.model();
+    const model = new this.model({}, {});
     return attrs[model.idAttribute || 'id'];
   }
 

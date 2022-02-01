@@ -244,7 +244,9 @@ export default class Collection<TModel extends Model = Model> {
   }
 
   async fetch(options: CollectionFetchOptions) {
-    console.debug(`${this.constructor.name}#fetch`);
+    if (__DEV__) {
+      console.debug(`${this.constructor.name}#fetch`);
+    }
 
     try {
       Vue.set(this, 'fetchLoading', true);
@@ -264,6 +266,10 @@ export default class Collection<TModel extends Model = Model> {
         this.reset(models, { parse });
       }
     } catch (error) {
+      if (__DEV__) {
+        console.error(`${this.constructor.name}#fetchError`, error);
+      }
+
       Vue.set(this, 'fetchError', error);
     } finally {
       Vue.set(this, 'fetchLoading', false);
@@ -271,7 +277,9 @@ export default class Collection<TModel extends Model = Model> {
   }
 
   async create(attributes: any, options?: CollectionCreateOptions) {
-    console.debug(`${this.constructor.name}#create`);
+    if (__DEV__) {
+      console.debug(`${this.constructor.name}#create`);
+    }
 
     try {
       Vue.set(this, 'createLoading', true);
@@ -290,6 +298,10 @@ export default class Collection<TModel extends Model = Model> {
       }
 
       if (model.saveError) {
+        if (__DEV__) {
+          console.error(`${this.constructor.name}#createError`, model.saveError);
+        }
+
         Vue.set(this, 'createError', model.saveError);
 
         return false;
@@ -299,6 +311,10 @@ export default class Collection<TModel extends Model = Model> {
         return model as TModel;
       }
     } catch (error) {
+      if (__DEV__) {
+        console.error(`${this.constructor.name}#createError`, error);
+      }
+
       Vue.set(this, 'createError', error);
       return false;
     } finally {

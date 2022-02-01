@@ -134,6 +134,10 @@ export default class Model<T extends ObjectHash = any> {
    * @param options
    */
   async fetch(options: ModelFetchOptions) {
+    if (__DEV__) {
+      console.debug(`${this.constructor.name}#fetch`);
+    }
+
     try {
       Vue.set(this, 'fetchLoading', true);
       Vue.set(this, 'fetchError', null);
@@ -146,6 +150,10 @@ export default class Model<T extends ObjectHash = any> {
 
       this.set(serverAttributes);
     } catch (error) {
+      if (__DEV__) {
+        console.error(`${this.constructor.name}#fetchError`, error);
+      }
+
       Vue.set(this, 'fetchError', error);
     } finally {
       Vue.set(this, 'fetchLoading', false);
@@ -159,6 +167,10 @@ export default class Model<T extends ObjectHash = any> {
    * @param options
    */
   async save(attributes?: Partial<T>, options?: ModelSaveOptions) {
+    if (__DEV__) {
+      console.debug(`${this.constructor.name}#save`);
+    }
+
     try {
       Vue.set(this, 'saveLoading', true);
       Vue.set(this, 'saveError', null);
@@ -180,6 +192,10 @@ export default class Model<T extends ObjectHash = any> {
 
       this.set(combinedAttributes);
     } catch (error) {
+      if (__DEV__) {
+        console.error(`${this.constructor.name}#saveError`, error);
+      }
+
       Vue.set(this, 'saveError', error);
     } finally {
       Vue.set(this, 'saveLoading', false);
@@ -187,6 +203,10 @@ export default class Model<T extends ObjectHash = any> {
   }
 
   async forcePost(attributes?: Partial<T>, options?: ModelSaveOptions) {
+    if (__DEV__) {
+      console.debug(`${this.constructor.name}#save`);
+    }
+
     try {
       Vue.set(this, 'saveLoading', true);
       Vue.set(this, 'saveError', null);
@@ -201,6 +221,10 @@ export default class Model<T extends ObjectHash = any> {
 
       this.set(combinedAttributes);
     } catch (error) {
+      if (__DEV__) {
+        console.error(`${this.constructor.name}#saveError`, error);
+      }
+
       Vue.set(this, 'saveError', error);
     } finally {
       Vue.set(this, 'saveLoading', false);
@@ -213,6 +237,10 @@ export default class Model<T extends ObjectHash = any> {
    * @param options
    */
   async destroy(options?: ModelDestroyOptions) {
+    if (__DEV__) {
+      console.debug(`${this.constructor.name}#destroy`);
+    }
+
     try {
       Vue.set(this, 'deleteLoading', true);
       Vue.set(this, 'deleteError', null);
@@ -223,6 +251,10 @@ export default class Model<T extends ObjectHash = any> {
         this.collection.remove(this);
       }
     } catch (error) {
+      if (__DEV__) {
+        console.error(`${this.constructor.name}#destroyError`, error);
+      }
+
       Vue.set(this, 'deleteError', error);
     } finally {
       Vue.set(this, 'deleteLoading', false);

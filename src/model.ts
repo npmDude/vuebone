@@ -24,7 +24,7 @@ export default class Model<T extends ObjectHash = any> {
   idAttribute = 'id';
   cidPrefix = 'c';
   id?: string | number = undefined;
-  cid: string;
+  cid!: string;
   /**
    * Default attributes for the model.
    * It can be an object hash or a method returning an object hash.
@@ -45,11 +45,11 @@ export default class Model<T extends ObjectHash = any> {
       this.preinitialize(attributes, options);
     }
 
-    this.cid = uniqueId(this.cidPrefix);
+    Vue.set(this, 'cid', uniqueId(this.cidPrefix));
 
     if (options) {
       if (options.collection) {
-        this.collection = options.collection;
+        Vue.set(this, 'collection', options.collection);
       };
 
       if (options.parse) {
@@ -100,7 +100,7 @@ export default class Model<T extends ObjectHash = any> {
     }
 
     if (this.idAttribute in attributes) {
-      this.id = this.get(this.idAttribute);
+      Vue.set(this, 'id', this.get(this.idAttribute));
     }
   }
 
@@ -135,8 +135,8 @@ export default class Model<T extends ObjectHash = any> {
    */
   async fetch(options: ModelFetchOptions) {
     try {
-      this.fetchLoading = true;
-      this.fetchError = null;
+      Vue.set(this, 'fetchLoading', true);
+      Vue.set(this, 'fetchError', null);
 
       const { parse, ...axiosConfig } = extend({ parse: true }, options);
 
@@ -146,9 +146,9 @@ export default class Model<T extends ObjectHash = any> {
 
       this.set(serverAttributes);
     } catch (error) {
-      this.fetchError = error;
+      Vue.set(this, 'fetchError', error);
     } finally {
-      this.fetchLoading = false;
+      Vue.set(this, 'fetchLoading', false);
     }
   }
 
@@ -160,8 +160,8 @@ export default class Model<T extends ObjectHash = any> {
    */
   async save(attributes?: Partial<T>, options?: ModelSaveOptions) {
     try {
-      this.saveLoading = true;
-      this.saveError = null;
+      Vue.set(this, 'saveLoading', true);
+      Vue.set(this, 'saveError', null);
 
       const { parse, ...axiosConfig } = extend({ parse: true }, options);
 
@@ -180,16 +180,16 @@ export default class Model<T extends ObjectHash = any> {
 
       this.set(combinedAttributes);
     } catch (error) {
-      this.saveError = error;
+      Vue.set(this, 'saveError', error);
     } finally {
-      this.saveLoading = false;
+      Vue.set(this, 'saveLoading', false);
     }
   }
 
   async forcePost(attributes?: Partial<T>, options?: ModelSaveOptions) {
     try {
-      this.saveLoading = true;
-      this.saveError = null;
+      Vue.set(this, 'saveLoading', true);
+      Vue.set(this, 'saveError', null);
 
       const { parse, ...axiosConfig } = extend({ parse: true }, options);
 
@@ -201,9 +201,9 @@ export default class Model<T extends ObjectHash = any> {
 
       this.set(combinedAttributes);
     } catch (error) {
-      this.saveError = error;
+      Vue.set(this, 'saveError', error);
     } finally {
-      this.saveLoading = false;
+      Vue.set(this, 'saveLoading', false);
     }
   }
 
@@ -214,8 +214,8 @@ export default class Model<T extends ObjectHash = any> {
    */
   async destroy(options?: ModelDestroyOptions) {
     try {
-      this.deleteLoading = true;
-      this.deleteError = null;
+      Vue.set(this, 'deleteLoading', true);
+      Vue.set(this, 'deleteError', null);
 
       await this.axios.delete(this.url(), options);
 
@@ -223,9 +223,9 @@ export default class Model<T extends ObjectHash = any> {
         this.collection.remove(this);
       }
     } catch (error) {
-      this.deleteError = error;
+      Vue.set(this, 'deleteError', error);
     } finally {
-      this.deleteLoading = false;
+      Vue.set(this, 'deleteLoading', false);
     }
   }
 

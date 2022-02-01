@@ -1,5 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
 import { clone, every, extend, filter, find, forEach, indexOf, ListIterateeCustom, ListIterator, map, matches, result, some } from 'lodash';
+import Vue from 'vue';
 import { ObjectHash, Parseable } from './generic-types';
 import Model, { ModelConstructor, ModelSaveOptions, ModelTypeParamaterT } from './model';
 
@@ -70,7 +71,7 @@ export default class Collection<TModel extends Model = Model> {
 
     if (options) {
       if (options.model) {
-        this.model = options.model;
+        Vue.set(this, 'model', options.model);
       }
     }
 
@@ -221,10 +222,10 @@ export default class Collection<TModel extends Model = Model> {
     if (set.length && isReplace) {
       this.models.splice(0);
       splice(this.models, set, 0);
-      this.length = this.models.length;
+      Vue.set(this, 'length', this.models.length);
     } else if (toAdd.length) {
       splice(this.models, toAdd, at == null ? this.length : at);
-      this.length = this.models.length;
+      Vue.set(this, 'length', this.models.length);
     }
 
     return isSingular ? modelsArray[0] as TModel : modelsArray as TModel[];
@@ -243,11 +244,13 @@ export default class Collection<TModel extends Model = Model> {
   }
 
   async fetch(options: CollectionFetchOptions) {
-    console.debug(`${this.constructor.name}#fetch`);
+    if (__DEV__) {
+      console.debug(`${this.constructor.name}#fetch`);
+    }
 
     try {
-      this.fetchLoading = true;
-      this.fetchError = null;
+      Vue.set(this, 'fetchLoading', true);
+      Vue.set(this, 'fetchError', null);
       this.reset();
 
       const { add, parse, ...axiosConfig } = extend({
@@ -263,18 +266,24 @@ export default class Collection<TModel extends Model = Model> {
         this.reset(models, { parse });
       }
     } catch (error) {
-      this.fetchError = error;
+      if (__DEV__) {
+        console.error(`${this.constructor.name}#fetchError`, error);
+      }
+
+      Vue.set(this, 'fetchError', error);
     } finally {
-      this.fetchLoading = false;
+      Vue.set(this, 'fetchLoading', false);
     }
   }
 
   async create(attributes: any, options?: CollectionCreateOptions) {
-    console.debug(`${this.constructor.name}#create`);
+    if (__DEV__) {
+      console.debug(`${this.constructor.name}#create`);
+    }
 
     try {
-      this.createLoading = true;
-      this.createError = null;
+      Vue.set(this, 'createLoading', true);
+      Vue.set(this, 'createError', null);
 
       const model = this._prepareModel(attributes);
 
@@ -289,7 +298,11 @@ export default class Collection<TModel extends Model = Model> {
       }
 
       if (model.saveError) {
-        this.createError = model.saveError;
+        if (__DEV__) {
+          console.error(`${this.constructor.name}#createError`, model.saveError);
+        }
+
+        Vue.set(this, 'createError', model.saveError);
 
         return false;
       } else {
@@ -298,10 +311,14 @@ export default class Collection<TModel extends Model = Model> {
         return model as TModel;
       }
     } catch (error) {
-      this.createError = error;
+      if (__DEV__) {
+        console.error(`${this.constructor.name}#createError`, error);
+      }
+
+      Vue.set(this, 'createError', error);
       return false;
     } finally {
-      this.createLoading = false;
+      Vue.set(this, 'createLoading', false);
     }
   }
 
@@ -358,9 +375,9 @@ export default class Collection<TModel extends Model = Model> {
   }
 
   private _reset() {
-    this.length = 0;
-    this.models = [];
-    this._byId = {};
+    Vue.set(this, 'length', 0);
+    Vue.set(this, 'models', []);
+    Vue.set(this, '_byId', {});
   }
 
   private _prepareModel(attributes?: any, options: any = {}): TModel {
@@ -389,9 +406,9 @@ export default class Collection<TModel extends Model = Model> {
 
       const index = this.indexOf(model);
       this.models.splice(index, 1);
-      this.length--;
+      Vue.set(this, 'length', this.length - 1);
 
-      delete this._byId[model.cid];
+      Vue.delete(this._byId, model.cid);
       const id = this.modelId(model.attributes);
       if (id != null) delete this._byId[id];
 
@@ -407,24 +424,24 @@ export default class Collection<TModel extends Model = Model> {
   }
 
   private _addReference(model: TModel) {
-    this._byId[model.cid] = model;
+    Vue.set(this._byId, model.cid, model);
 
     const id = this.modelId(model.attributes);
     if (id != null) {
-      this._byId[id] = model;
+      Vue.set(this._byId, id, model);
     };
   }
 
   private _removeReference(model: TModel) {
-    delete this._byId[model.cid];
+    Vue.delete(this._byId, model.cid);
 
     const id = this.modelId(model.attributes);
     if (id != null) {
-      delete this._byId[id];
+      Vue.delete(this._byId, id);
     };
 
     if (this === model.collection) {
-      delete model.collection;
+      Vue.delete(model, 'collection');
     };
   }
 

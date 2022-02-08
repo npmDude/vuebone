@@ -19,7 +19,7 @@ export interface ModelSaveOptions extends AxiosRequestConfig, Parseable { }
 interface ModelDestroyOptions extends AxiosRequestConfig { }
 
 export default class Model<T extends ObjectHash = any> {
-  axios: AxiosInstance = axios;
+  axios?: AxiosInstance;
   urlRoot: string | (() => string) = '';
   idAttribute = 'id';
   cidPrefix = 'c';
@@ -144,7 +144,7 @@ export default class Model<T extends ObjectHash = any> {
 
       const { parse, ...axiosConfig } = extend({ parse: true }, options);
 
-      const { data } = await this.axios.get(this.url(), axiosConfig);
+      const { data } = await this.getAxios().get(this.url(), axiosConfig);
 
       const serverAttributes = parse ? this.parse(data) : data;
 
@@ -179,10 +179,10 @@ export default class Model<T extends ObjectHash = any> {
 
       let serverData;
       if (this.isNew()) {
-        const { data } = await this.axios.post(this.url(), { ...this.attributes, ...attributes }, axiosConfig);
+        const { data } = await this.getAxios().post(this.url(), { ...this.attributes, ...attributes }, axiosConfig);
         serverData = data;
       } else {
-        const { data } = await this.axios.patch(this.url(), attributes, axiosConfig);
+        const { data } = await this.getAxios().patch(this.url(), attributes, axiosConfig);
         serverData = data;
       }
 
@@ -213,7 +213,7 @@ export default class Model<T extends ObjectHash = any> {
 
       const { parse, ...axiosConfig } = extend({ parse: true }, options);
 
-      const { data: serverData } = await this.axios.post(this.baseUrl(), { ...this.attributes, ...attributes }, axiosConfig);
+      const { data: serverData } = await this.getAxios().post(this.baseUrl(), { ...this.attributes, ...attributes }, axiosConfig);
 
       const serverAttributes = parse ? this.parse(serverData) : serverData;
 
@@ -245,7 +245,7 @@ export default class Model<T extends ObjectHash = any> {
       Vue.set(this, 'deleteLoading', true);
       Vue.set(this, 'deleteError', null);
 
-      await this.axios.delete(this.url(), options);
+      await this.getAxios().delete(this.url(), options);
 
       if (this.collection) {
         this.collection.remove(this);
@@ -275,6 +275,16 @@ export default class Model<T extends ObjectHash = any> {
     const id = this.get(this.idAttribute);
 
     return base.replace(/[^/]$/, '$&/') + id;
+  }
+
+  getAxios() {
+    if (this.axios) {
+      return this.axios;
+    } else if (this.collection) {
+      return this.collection.axios;
+    } else {
+      return axios;
+    }
   }
 
   baseUrl() {
